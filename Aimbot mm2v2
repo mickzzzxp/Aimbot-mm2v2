@@ -1,0 +1,106 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Notificação simples
+local function Notify(msg)
+    print("[MM2 Script] " .. msg)
+end
+
+-- ESP simples
+local espEnabled = false
+local espLabels = {}
+
+local function ClearESP()
+    for _, label in pairs(espLabels) do
+        if label and label.Parent then
+            label:Destroy()
+        end
+    end
+    espLabels = {}
+end
+
+local function ESP()
+    ClearESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local color = Color3.new(1,1,1)
+            if player.Backpack:FindFirstChild("Gun") or (player.Character:FindFirstChild("Gun")) then
+                color = Color3.new(0,0,1) -- Azul: Sheriff
+            elseif player.Character:FindFirstChild("Knife") then
+                color = Color3.new(1,0,0) -- Vermelho: Murder
+            end
+            local head = player.Character.Head
+            local billboard = Instance.new("BillboardGui", head)
+            billboard.Size = UDim2.new(0, 100, 0, 40)
+            billboard.AlwaysOnTop = true
+            billboard.StudsOffset = Vector3.new(0, 2, 0)
+            billboard.Name = "ESP_Label"
+            local textLabel = Instance.new("TextLabel", billboard)
+            textLabel.Size = UDim2.new(1,0,1,0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = player.Name
+            textLabel.TextColor3 = color
+            textLabel.TextStrokeTransparency = 0.5
+            textLabel.Font = Enum.Font.SourceSansBold
+            textLabel.TextScaled = true
+            table.insert(espLabels, billboard)
+        end
+    end
+end
+
+-- Silent Aim simplificado
+local function GetMurderer()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Knife") then
+            return player.Character
+        end
+    end
+end
+
+-- Tenta redirecionar o tiro
+local function DoSilentAim()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Gun") then return end
+    local gun = char:FindFirstChild("Gun")
+    local remote = gun:FindFirstChildWhichIsA("RemoteEvent")
+    if remote then
+        local murder = GetMurderer()
+        if murder and murder:FindFirstChild("Head") then
+            -- Tenta atirar na cabeça do murder
+            remote:FireServer(murder.Head.Position, murder.Head.Position)
+            Notify("Silent Aim: Tiro enviado para o Murder!")
+        else
+            Notify("Silent Aim: Murder não encontrado.")
+        end
+    else
+        Notify("Silent Aim: RemoteEvent não encontrado.")
+    end
+end
+
+-- Atalhos
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.G then
+        Notify("Silent Aim Ativado (pressione H para atirar no Murder quando for Sheriff)!")
+    elseif input.KeyCode == Enum.KeyCode.E then
+        espEnabled = not espEnabled
+        if espEnabled then
+            Notify("ESP Ativado!")
+            ESP()
+        else
+            Notify("ESP Desativado!")
+            ClearESP()
+        end
+    elseif input.KeyCode == Enum.KeyCode.H then
+        DoSilentAim()
+    end
+end)
+
+-- Atualiza ESP constantemente
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        ESP()
+    end
+end)
